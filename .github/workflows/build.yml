@@ -196,8 +196,12 @@ jobs:
         shell: bash
 
       # ----------------------------------------------------------------
-      # Package the output. Exclude the build-time lib PDBs unless
+      # Stage the output. Exclude the build-time lib PDBs unless
       # explicitly requested, to keep the artifact small.
+      #
+      # NOTE: we upload the raw folder and let upload-artifact do the
+      # (single) compression. Pre-zipping here would produce a
+      # "zip inside a zip" after the action wraps it again.
       # ----------------------------------------------------------------
       - name: Stage artifact
         shell: bash
@@ -213,24 +217,13 @@ jobs:
             find "$staging" -name "ImageGlass.Lib.pdb" -delete 2>/dev/null || true
           fi
 
-          # produce a version string for the archive name
+          # produce a version string for the artifact name
           version="$(grep -oP '(?<=IgVersion>)[^<]+' source/Directory.Build.props | head -n1)"
-          name="ImageGlass_${version}_${{ matrix.platform }}-${{ matrix.arch }}_${{ inputs.configuration }}-${{ inputs.publish_mode }}"
-          echo "ARTIFACT_NAME=$name" >> "$GITHUB_ENV"
-
-          # zip it up (cross-platform: 7z on Windows, zip elsewhere)
-          if [ "${{ matrix.platform }}" = "win" ]; then
-            7z a -tzip "$name.zip" "$staging/*"
-          else
-            ( cd "$staging" && zip -r "../$name.zip" . )
-          fi
-          echo "Archive created: $name.zip"
-          ls -lh "$name.zip"
+          echo "ARTIFACT_NAME=ImageGlass_${version}_${{ matrix.platform }}-${{ matrix.arch }}_${{ inputs.configuration }}-${{ inputs.publish_mode }}" >> "$GITHUB_ENV"
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.ARTIFACT_NAME }}
-          path: ${{ env.ARTIFACT_NAME }}.zip
+          path: ./artifact
           retention-days: 7
-          compression-level: 0
