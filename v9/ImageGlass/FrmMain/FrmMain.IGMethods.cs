@@ -3502,6 +3502,9 @@ public partial class FrmMain
             MnuViewChannelBlue.Checked = channels.HasFlag(ColorChannels.B);
             MnuViewChannelAlpha.Checked = channels.HasFlag(ColorChannels.A);
 
+            // sync the toolbar R/G/B/A toggle buttons from the menu items
+            UpdateToolbarItemsState();
+
             if (Local.ImageTransform.HasChanges)
             {
                 _ = PicMain.RotateImage(Local.ImageTransform.Rotation, false);

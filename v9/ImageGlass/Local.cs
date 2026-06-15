@@ -68,6 +68,34 @@ public class Local
             CheckableConfigBinding = nameof(Config.ShowCheckerboard),
             OnClick = new(nameof(FrmMain.MnuToggleCheckerboard)),
         },
+        new() // MnuViewChannelRed — color channel R toggle (text button, no icon)
+        {
+            Id = $"Btn_{nameof(FrmMain.MnuViewChannelRed)}",
+            Text = "R",
+            DisplayStyle = ToolStripItemDisplayStyle.ImageAndText,
+            OnClick = new(nameof(FrmMain.MnuViewChannelRed)),
+        },
+        new() // MnuViewChannelGreen — color channel G toggle
+        {
+            Id = $"Btn_{nameof(FrmMain.MnuViewChannelGreen)}",
+            Text = "G",
+            DisplayStyle = ToolStripItemDisplayStyle.ImageAndText,
+            OnClick = new(nameof(FrmMain.MnuViewChannelGreen)),
+        },
+        new() // MnuViewChannelBlue — color channel B toggle
+        {
+            Id = $"Btn_{nameof(FrmMain.MnuViewChannelBlue)}",
+            Text = "B",
+            DisplayStyle = ToolStripItemDisplayStyle.ImageAndText,
+            OnClick = new(nameof(FrmMain.MnuViewChannelBlue)),
+        },
+        new() // MnuViewChannelAlpha — color channel A toggle
+        {
+            Id = $"Btn_{nameof(FrmMain.MnuViewChannelAlpha)}",
+            Text = "A",
+            DisplayStyle = ToolStripItemDisplayStyle.ImageAndText,
+            OnClick = new(nameof(FrmMain.MnuViewChannelAlpha)),
+        },
         new() // MnuColorPicker
         {
             Id = $"Btn_{nameof(FrmMain.MnuColorPicker)}",
@@ -259,6 +287,12 @@ public class Local
         $"Btn_{nameof(FrmMain.MnuToggleCheckerboard)}",
         $"Btn_{nameof(FrmMain.MnuFullScreen)}",
         $"Btn_{nameof(FrmMain.MnuSlideshow)}",
+
+        nameof(ToolbarItemModelType.Separator),
+        $"Btn_{nameof(FrmMain.MnuViewChannelRed)}",
+        $"Btn_{nameof(FrmMain.MnuViewChannelGreen)}",
+        $"Btn_{nameof(FrmMain.MnuViewChannelBlue)}",
+        $"Btn_{nameof(FrmMain.MnuViewChannelAlpha)}",
 
         nameof(ToolbarItemModelType.Separator),
         $"Btn_{nameof(FrmMain.MnuMoveToRecycleBin)}",
