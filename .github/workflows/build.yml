@@ -85,12 +85,21 @@ jobs:
           dotnet-quality: "ga"
 
       # ----------------------------------------------------------------
+      # v9 has a <COMReference> (IWshRuntimeLibrary) in ImageGlass.Base.
+      # The `dotnet` CLI uses .NET Core MSBuild which does NOT support the
+      # ResolveComReference task (error MSB4803). We MUST use the full
+      # Framework MSBuild from Visual Studio instead.
+      # ----------------------------------------------------------------
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      # ----------------------------------------------------------------
       # v9 needs NO `dotnet workload` packages (WinForms desktop stack
       # ships with the Windows SDK). Calling workload update/restore here
       # would pull gigabytes of useless WASM/MAUI toolchain.
       # ----------------------------------------------------------------
 
-      - name: Dotnet restore
+      - name: MSBuild restore
         shell: bash
         run: |
           case "${{ matrix.arch }}" in
@@ -99,12 +108,11 @@ jobs:
           esac
 
           # restore MUST include the RuntimeIdentifier + Platform so that
-          # project.assets.json contains the matching restore target;
-          # otherwise publish (which passes -p:RuntimeIdentifier) fails
-          # with NETSDK1047.
-          dotnet restore v9/ImageGlass.slnx \
+          # project.assets.json contains the matching restore target.
+          # Using MSBuild (not dotnet) so COM references resolve correctly.
+          msbuild v9/ImageGlass.slnx -t:Restore \
             -p:Platform="$plat" \
-            --runtime "$rid"
+            -p:RuntimeIdentifier="$rid"
 
       # ----------------------------------------------------------------
       # Compile. Two modes:
@@ -129,20 +137,20 @@ jobs:
           if [ "${{ inputs.publish_mode }}" = "publish" ]; then
             cfg="Publish_Release"
             # publish ImageGlass first (it owns the output folder)
-            dotnet publish v9/ImageGlass/ImageGlass.csproj \
-              -c "$cfg" -p:Platform="$plat" -p:RuntimeIdentifier="$rid" \
-              --no-restore -o "./out/ImageGlass"
+            msbuild v9/ImageGlass/ImageGlass.csproj -t:Publish \
+              -p:Configuration="$cfg" -p:Platform="$plat" -p:RuntimeIdentifier="$rid" \
+              -p:PublishDir="../../out/ImageGlass/" --no-restore
 
             # publish igcmd into the SAME output folder
-            dotnet publish v9/igcmd/igcmd.csproj \
-              -c "$cfg" -p:Platform="$plat" -p:RuntimeIdentifier="$rid" \
-              --no-restore -o "./out/ImageGlass"
+            msbuild v9/igcmd/igcmd.csproj -t:Publish \
+              -p:Configuration="$cfg" -p:Platform="$plat" -p:RuntimeIdentifier="$rid" \
+              -p:PublishDir="../../out/ImageGlass/" --no-restore
 
             out_dir="./out/ImageGlass"
           else
             cfg="${{ inputs.configuration }}"
-            dotnet build v9/ImageGlass.slnx \
-              -c "$cfg" -p:Platform="$plat" -p:RuntimeIdentifier="$rid" \
+            msbuild v9/ImageGlass.slnx -t:Build \
+              -p:Configuration="$cfg" -p:Platform="$plat" -p:RuntimeIdentifier="$rid" \
               --no-restore
             # build output lives in each project's bin/<cfg>/<plat>/
             out_dir="v9/ImageGlass/bin/$cfg/$plat"
