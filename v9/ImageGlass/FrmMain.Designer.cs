@@ -577,7 +577,7 @@ namespace ImageGlass
             // MnuViewChannelRed
             // 
             MnuViewChannelRed.Checked = true;
-            MnuViewChannelRed.CheckOnClick = true;
+            MnuViewChannelRed.CheckOnClick = false;
             MnuViewChannelRed.CheckState = CheckState.Checked;
             MnuViewChannelRed.ImageScaling = ToolStripItemImageScaling.None;
             MnuViewChannelRed.Name = "MnuViewChannelRed";
@@ -588,7 +588,7 @@ namespace ImageGlass
             // MnuViewChannelGreen
             // 
             MnuViewChannelGreen.Checked = true;
-            MnuViewChannelGreen.CheckOnClick = true;
+            MnuViewChannelGreen.CheckOnClick = false;
             MnuViewChannelGreen.CheckState = CheckState.Checked;
             MnuViewChannelGreen.ImageScaling = ToolStripItemImageScaling.None;
             MnuViewChannelGreen.Name = "MnuViewChannelGreen";
@@ -599,7 +599,7 @@ namespace ImageGlass
             // MnuViewChannelBlue
             // 
             MnuViewChannelBlue.Checked = true;
-            MnuViewChannelBlue.CheckOnClick = true;
+            MnuViewChannelBlue.CheckOnClick = false;
             MnuViewChannelBlue.CheckState = CheckState.Checked;
             MnuViewChannelBlue.ImageScaling = ToolStripItemImageScaling.None;
             MnuViewChannelBlue.Name = "MnuViewChannelBlue";
@@ -610,7 +610,7 @@ namespace ImageGlass
             // MnuViewChannelAlpha
             // 
             MnuViewChannelAlpha.Checked = true;
-            MnuViewChannelAlpha.CheckOnClick = true;
+            MnuViewChannelAlpha.CheckOnClick = false;
             MnuViewChannelAlpha.CheckState = CheckState.Checked;
             MnuViewChannelAlpha.ImageScaling = ToolStripItemImageScaling.None;
             MnuViewChannelAlpha.Name = "MnuViewChannelAlpha";

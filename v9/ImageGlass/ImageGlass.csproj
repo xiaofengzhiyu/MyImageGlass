@@ -219,7 +219,17 @@
     </Target>
 
 
-    <!-- Copy resources -->
+    <!--
+        Copy resources (Themes / Language / WebUI).
+
+        During normal build, $(OutputPath) points to bin/<cfg>/<plat>/ and the
+        copies land there. During `dotnet/msbuild -t:Publish`, however,
+        $(OutputPath) still points at the regular bin folder while the real
+        published output goes to $(PublishDir). Without copying into
+        $(PublishDir) as well, the published folder is missing Themes/Language,
+        and the app fails at startup (e.g. "Unable to load 'Kobe-Light' theme
+        pack"). We therefore copy into BOTH locations when publishing.
+    -->
     <Target Name="PostBuild" AfterTargets="PostBuildEvent">
         <ItemGroup>
             <IG_Themes Include="..\_Setup\Assets\Themes\**\*.*" />
@@ -227,9 +237,16 @@
             <Web_UI Include="..\Components\ImageGlass.Settings\WebUI\dist\**\*.*" />
         </ItemGroup>
 
+        <!-- Always copy to the regular build output folder. -->
         <Copy SourceFiles="@(IG_Themes)" DestinationFolder="$(OutputPath)\Themes\%(RecursiveDir)" SkipUnchangedFiles="true" />
         <Copy SourceFiles="@(IG_Langs)" DestinationFolder="$(OutputPath)\Language\%(RecursiveDir)" SkipUnchangedFiles="true" />
         <Copy SourceFiles="@(Web_UI)" DestinationFolder="$(OutputPath)\WebUI\%(RecursiveDir)" SkipUnchangedFiles="true" />
+
+        <!-- When publishing, also copy into $(PublishDir) so the published
+             folder contains the resources the app needs at runtime. -->
+        <Copy SourceFiles="@(IG_Themes)" DestinationFolder="$(PublishDir)\Themes\%(RecursiveDir)" SkipUnchangedFiles="true" Condition="'$(PublishDir)' != ''" />
+        <Copy SourceFiles="@(IG_Langs)" DestinationFolder="$(PublishDir)\Language\%(RecursiveDir)" SkipUnchangedFiles="true" Condition="'$(PublishDir)' != ''" />
+        <Copy SourceFiles="@(Web_UI)" DestinationFolder="$(PublishDir)\WebUI\%(RecursiveDir)" SkipUnchangedFiles="true" Condition="'$(PublishDir)' != ''" />
     </Target>
 
 </Project>

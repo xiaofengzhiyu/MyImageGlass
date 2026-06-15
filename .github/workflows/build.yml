@@ -93,6 +93,27 @@ jobs:
         uses: microsoft/setup-msbuild@v2
 
       # ----------------------------------------------------------------
+      # Build the WebView2 front-end. The WebUI/dist folder is git-ignored
+      # and is required by ImageGlass's PostBuild target: Quick Setup,
+      # Settings, About and Update dialogs load their HTML/JS from there.
+      # Without this step the published app has no WebUI/*.html and the
+      # Quick Setup window fails to render (app exits silently).
+      # ----------------------------------------------------------------
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Build WebUI
+        shell: pwsh
+        run: |
+          Write-Host "Installing WebUI dependencies..."
+          npm --prefix v9/Components/ImageGlass.Settings/WebUI ci
+
+          Write-Host "Building WebUI (webpack, production)..."
+          npm --prefix v9/Components/ImageGlass.Settings/WebUI run build
+
+      # ----------------------------------------------------------------
       # v9 needs NO `dotnet workload` packages (WinForms desktop stack
       # ships with the Windows SDK). Calling workload update/restore here
       # would pull gigabytes of useless WASM/MAUI toolchain.

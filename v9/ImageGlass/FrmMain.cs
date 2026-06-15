@@ -2295,56 +2295,33 @@ public partial class FrmMain : ThemedForm
 
     private void MnuViewChannelRed_Click(object sender, EventArgs e)
     {
-        if (MnuViewChannelRed.Checked)
-        {
-            Local.ImageChannels ^= ColorChannels.R;
-        }
-        else
-        {
-            Local.ImageChannels |= ColorChannels.R;
-        }
+        // Toggle the R channel based on the *current* channel state (the single
+        // source of truth), not on the menu item's Checked flag — the latter is
+        // unreliable because CheckOnClick and PerformClick() both flip Checked,
+        // and the timing of the flip relative to this handler differs between a
+        // real menu click and a toolbar-triggered PerformClick().
+        Local.ImageChannels ^= ColorChannels.R;
 
         IG_SetImageColorChannels();
     }
 
     private void MnuViewChannelGreen_Click(object sender, EventArgs e)
     {
-        if (MnuViewChannelGreen.Checked)
-        {
-            Local.ImageChannels ^= ColorChannels.G;
-        }
-        else
-        {
-            Local.ImageChannels |= ColorChannels.G;
-        }
+        Local.ImageChannels ^= ColorChannels.G;
 
         IG_SetImageColorChannels();
     }
 
     private void MnuViewChannelBlue_Click(object sender, EventArgs e)
     {
-        if (MnuViewChannelBlue.Checked)
-        {
-            Local.ImageChannels ^= ColorChannels.B;
-        }
-        else
-        {
-            Local.ImageChannels |= ColorChannels.B;
-        }
+        Local.ImageChannels ^= ColorChannels.B;
 
         IG_SetImageColorChannels();
     }
 
     private void MnuViewChannelAlpha_Click(object sender, EventArgs e)
     {
-        if (MnuViewChannelAlpha.Checked)
-        {
-            Local.ImageChannels ^= ColorChannels.A;
-        }
-        else
-        {
-            Local.ImageChannels |= ColorChannels.A;
-        }
+        Local.ImageChannels ^= ColorChannels.A;
 
         IG_SetImageColorChannels();
     }
