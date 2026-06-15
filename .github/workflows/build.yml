@@ -5,7 +5,7 @@ name: Build ImageGlass (v9)
 # then the selected combinations are built and published as
 # downloadable artifacts (kept for 7 days).
 #
-# v9 is Windows-only (net10.0-windows, WinForms), so this always
+# v9 is Windows-only (net9.0-windows, WinForms), so this always
 # runs on a Windows runner and only offers win-x64 / win-arm64.
 on:
   workflow_dispatch:
@@ -63,7 +63,7 @@ jobs:
 
   # ------------------------------------------------------------------
   # One job per architecture. Always runs on Windows because v9 is a
-  # WinForms / net10.0-windows app (no Linux or macOS build exists).
+  # WinForms / net9.0-windows app (no Linux or macOS build exists).
   # ------------------------------------------------------------------
   build:
     name: win-${{ matrix.arch }}
