@@ -140,20 +140,19 @@ jobs:
             # publish ImageGlass first (it owns the output folder)
             msbuild v9/ImageGlass/ImageGlass.csproj -t:Publish `
               -p:Configuration="$cfg" -p:Platform="$plat" -p:RuntimeIdentifier="$rid" `
-              -p:PublishDir="../../out/ImageGlass/" --no-restore
+              -p:PublishDir="../../out/ImageGlass/"
 
             # publish igcmd into the SAME output folder
             msbuild v9/igcmd/igcmd.csproj -t:Publish `
               -p:Configuration="$cfg" -p:Platform="$plat" -p:RuntimeIdentifier="$rid" `
-              -p:PublishDir="../../out/ImageGlass/" --no-restore
+              -p:PublishDir="../../out/ImageGlass/"
 
             $out_dir = "./out/ImageGlass"
           }
           else {
             $cfg = "${{ inputs.configuration }}"
             msbuild v9/ImageGlass.slnx -t:Build `
-              -p:Configuration="$cfg" -p:Platform="$plat" -p:RuntimeIdentifier="$rid" `
-              --no-restore
+              -p:Configuration="$cfg" -p:Platform="$plat" -p:RuntimeIdentifier="$rid"
             # build output lives in each project's bin/<cfg>/<plat>/
             $out_dir = "v9/ImageGlass/bin/$cfg/$plat"
           }
