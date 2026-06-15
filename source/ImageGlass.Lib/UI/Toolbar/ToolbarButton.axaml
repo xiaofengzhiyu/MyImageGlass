@@ -20,6 +20,7 @@
         Spacing="{CompiledBinding InnerSpacing}">
 
         <Svg
+            IsVisible="{CompiledBinding HasIcon}"
             Width="{CompiledBinding Config.ToolbarIconHeight}"
             Height="{CompiledBinding Config.ToolbarIconHeight}"
             Path="{CompiledBinding ImagePath}" />

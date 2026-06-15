@@ -134,6 +134,7 @@ public partial class ToolbarItemModel : PhReactive, IJsonOnDeserialized
 
             _ = OnPropertyChanged();
             _ = OnPropertyChanged(nameof(ImagePath));
+            _ = OnPropertyChanged(nameof(HasIcon));
         }
     } = "";
 
@@ -336,6 +337,12 @@ public partial class ToolbarItemModel : PhReactive, IJsonOnDeserialized
     /// </summary>
     [JsonIgnore]
     public bool IsSeparator => Id.Equals(ID_SEPARATOR, StringComparison.InvariantCultureIgnoreCase);
+
+    /// <summary>
+    /// Gets the value indicating that the toolbar button has an SVG icon.
+    /// </summary>
+    [JsonIgnore]
+    public bool HasIcon => !string.IsNullOrWhiteSpace(Image);
 
 
     /// <summary>

@@ -19,6 +19,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 using ImageGlass.Common.Actions;
 using ImageGlass.Common.AppThemes;
 using ImageGlass.Common.Localization;
+using ImageGlass.Common.Photoing;
 using ImageGlass.Common.ServiceProviders;
 using ImageGlass.Common.Types;
 using ImageGlass.UI;
@@ -216,6 +217,42 @@ public partial class Config
             ConfigBinding = nameof(Config.ZoomMode),
             ConfigBindingValue = ZoomMode.ScaleToFill.ToString(),
             OnClick = new(LangId.FrmMain_MnuScaleToFill, API.IG_SetZoomMode, nameof(ZoomMode.ScaleToFill)),
+        },
+        ToolbarItemModel.Separator,
+
+
+        // color channels: R / G / B / A toggle group
+        new() {
+            Id = "Btn_ChannelR",
+            Text = "R",
+            ShowText = true,
+            ConfigBinding = nameof(Config.ColorChannels),
+            ConfigBindingValue = $"hasFlag:{nameof(ColorChannels.R)}",
+            OnClick = new(LangId.FrmMain_MnuViewChannels, API.IG_ToggleColorChannel, "R"),
+        },
+        new() {
+            Id = "Btn_ChannelG",
+            Text = "G",
+            ShowText = true,
+            ConfigBinding = nameof(Config.ColorChannels),
+            ConfigBindingValue = $"hasFlag:{nameof(ColorChannels.G)}",
+            OnClick = new(LangId.FrmMain_MnuViewChannels, API.IG_ToggleColorChannel, "G"),
+        },
+        new() {
+            Id = "Btn_ChannelB",
+            Text = "B",
+            ShowText = true,
+            ConfigBinding = nameof(Config.ColorChannels),
+            ConfigBindingValue = $"hasFlag:{nameof(ColorChannels.B)}",
+            OnClick = new(LangId.FrmMain_MnuViewChannels, API.IG_ToggleColorChannel, "B"),
+        },
+        new() {
+            Id = "Btn_ChannelA",
+            Text = "A",
+            ShowText = true,
+            ConfigBinding = nameof(Config.ColorChannels),
+            ConfigBindingValue = $"hasFlag:{nameof(ColorChannels.A)}",
+            OnClick = new(LangId.FrmMain_MnuViewChannels, API.IG_ToggleColorChannel, "A"),
         },
         ToolbarItemModel.Separator,
 

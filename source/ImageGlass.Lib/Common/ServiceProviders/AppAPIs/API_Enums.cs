@@ -82,6 +82,7 @@ public enum API
     IG_SetLoadingOrderBy,
     IG_SetLoadingOrderType,
     IG_SetColorChannels,
+    IG_ToggleColorChannel,
     IG_OpenEditingApp,
     IG_InvertColors,
     IG_ToggleImageAnimation,

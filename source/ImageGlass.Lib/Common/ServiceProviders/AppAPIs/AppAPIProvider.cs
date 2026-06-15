@@ -1560,6 +1560,32 @@ public partial class AppAPIProvider
 
 
     /// <summary>
+    /// Toggles a single color channel (R/G/B/A) on or off.
+    /// At least one channel is always kept visible.
+    /// </summary>
+    /// <param name="channelStr">One of <c>"R"</c>, <c>"G"</c>, <c>"B"</c>, <c>"A"</c>.</param>
+    public void IG_ToggleColorChannel(string? channelStr)
+    {
+        if (!Enum.TryParse<ColorChannels>(channelStr, out var channel))
+        {
+            throw new ArgumentException($"""
+                '{channelStr}' is not a valid color channel.
+
+                ----------
+                👉🏼 Method: {nameof(IG_ToggleColorChannel)}
+                """,
+                nameof(channelStr));
+        }
+
+        // XOR toggles the channel; never allow all channels to be cleared
+        var next = Core.ColorChannels ^ channel;
+        if (next == 0) return;
+
+        IG_SetColorChannels(next);
+    }
+
+
+    /// <summary>
     /// Open app for edit action.
     /// </summary>
     public async Task IG_OpenEditingAppAsync()

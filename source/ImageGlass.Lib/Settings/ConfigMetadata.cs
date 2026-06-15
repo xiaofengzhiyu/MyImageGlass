@@ -130,6 +130,7 @@ public enum ConfigId
     ImageInterpolationScaleUp,
     AfterEditingAction,
     WindowBackdrop,
+    ColorChannels,
 
     #endregion // Enum settings
 

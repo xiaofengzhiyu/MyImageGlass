@@ -805,6 +805,16 @@ public partial class Config : PhReactive
         set => Set(ConfigId.WindowBackdrop, value);
     }
 
+    /// <summary>
+    /// Gets, sets the visible color channels of the viewing image.
+    /// </summary>
+    [JsonConverter(typeof(JsonStringEnumSafeConverter<ColorChannels>))]
+    public ColorChannels ColorChannels
+    {
+        get => Get(ConfigId.ColorChannels, ColorChannels.RGBA);
+        set => Set(ConfigId.ColorChannels, value);
+    }
+
     #endregion // Enum items
 
 

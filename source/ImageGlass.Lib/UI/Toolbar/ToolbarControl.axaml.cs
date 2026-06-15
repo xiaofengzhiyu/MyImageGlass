@@ -555,13 +555,27 @@ public partial class ToolbarControl : PhControl
     /// </summary>
     private static bool ComputeCheckState(ToolbarItemModel vm)
     {
-        var configValue = Core.Config.GetAsString(vm.ConfigBinding);
         var configBindingValue = vm.ConfigBindingValue;
+
+        // flag-based binding: "hasFlag:<FlagName>" tests a [Flags] enum value,
+        // e.g. used by the R/G/B/A color channel buttons.
+        if (configBindingValue.StartsWith("hasFlag:", StringComparison.Ordinal))
+        {
+            var flagName = configBindingValue.Substring("hasFlag:".Length);
+            if (Enum.TryParse<ColorChannels>(flagName, out var flag))
+            {
+                return Core.ColorChannels.HasFlag(flag);
+            }
+
+            return false;
+        }
+
+        var configValue = Core.Config.GetAsString(vm.ConfigBinding);
         var configBindingValueEqual = true;
 
-        if (vm.ConfigBindingValue.StartsWith('!'))
+        if (configBindingValue.StartsWith('!'))
         {
-            configBindingValue = vm.ConfigBindingValue.Substring(1);
+            configBindingValue = configBindingValue.Substring(1);
             configBindingValueEqual = false;
         }
 
