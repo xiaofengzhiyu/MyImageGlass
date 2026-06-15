@@ -1327,7 +1327,9 @@ public partial class FrmMain
         // Is there a file in clipboard?
         if (Clipboard.ContainsFileDropList())
         {
-            if (Clipboard.TryGetData<string[]>(DataFormats.FileDrop, out var sFile))
+            // Clipboard.TryGetData is .NET 10+; use GetDataObject for .NET 9 compat
+            var data = Clipboard.GetDataObject();
+            if (data?.GetData(DataFormats.FileDrop) is string[] sFile)
             {
                 // load file
                 PrepareLoading(sFile[0], true);
