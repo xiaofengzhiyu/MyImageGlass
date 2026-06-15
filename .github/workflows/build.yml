@@ -41,11 +41,6 @@ on:
         options:
           - aot
           - fast
-      include_lib:
-        description: "Include ImageGlass.Lib PDBs in artifact"
-        required: false
-        type: boolean
-        default: false
 
 # Cancel any superseded manual run of the same workflow.
 concurrency:
@@ -196,8 +191,9 @@ jobs:
         shell: bash
 
       # ----------------------------------------------------------------
-      # Stage the output. Exclude the build-time lib PDBs unless
-      # explicitly requested, to keep the artifact small.
+      # Stage the output. Strip all debug symbols (.pdb) — including the
+      # large native ones (libSkiaSharp.pdb ~84MB, libHarfBuzzSharp.pdb
+      # ~20MB) — to keep the artifact small for a release build.
       #
       # NOTE: we upload the raw folder and let upload-artifact do the
       # (single) compression. Pre-zipping here would produce a
@@ -209,13 +205,12 @@ jobs:
           staging="./artifact"
           mkdir -p "$staging"
 
-          # copy publish output, drop ref assemblies and (optionally) lib PDBs
+          # copy publish output, drop ref assemblies
           cp -r ./publish/* "$staging/"
           rm -rf "$staging"/ref 2>/dev/null || true
 
-          if [ "${{ inputs.include_lib }}" != "true" ]; then
-            find "$staging" -name "ImageGlass.Lib.pdb" -delete 2>/dev/null || true
-          fi
+          # remove all debug symbols (.pdb) — both C# and native lib ones
+          find "$staging" -name "*.pdb" -delete 2>/dev/null || true
 
           # produce a version string for the artifact name
           version="$(grep -oP '(?<=IgVersion>)[^<]+' source/Directory.Build.props | head -n1)"
