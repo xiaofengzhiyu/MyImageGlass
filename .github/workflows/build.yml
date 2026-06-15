@@ -100,18 +100,19 @@ jobs:
       # ----------------------------------------------------------------
 
       - name: MSBuild restore
-        shell: bash
+        shell: pwsh
         run: |
-          case "${{ matrix.arch }}" in
-            x64)   plat="x64";   rid="win-x64" ;;
-            arm64) plat="ARM64"; rid="win-arm64" ;;
-          esac
+          # map matrix arch to csproj Platform value + RID
+          switch ("${{ matrix.arch }}") {
+            "x64"   { $plat = "x64";   $rid = "win-x64" }
+            "arm64" { $plat = "ARM64"; $rid = "win-arm64" }
+          }
 
           # restore MUST include the RuntimeIdentifier + Platform so that
           # project.assets.json contains the matching restore target.
           # Using MSBuild (not dotnet) so COM references resolve correctly.
-          msbuild v9/ImageGlass.slnx -t:Restore \
-            -p:Platform="$plat" \
+          msbuild v9/ImageGlass.slnx -t:Restore `
+            -p:Platform="$plat" `
             -p:RuntimeIdentifier="$rid"
 
       # ----------------------------------------------------------------
@@ -127,38 +128,39 @@ jobs:
       # AnyCPU would fail). The RID is win-x64 / win-arm64.
       # ----------------------------------------------------------------
       - name: Publish (${{ inputs.publish_mode }})
-        shell: bash
+        shell: pwsh
         run: |
-          case "${{ matrix.arch }}" in
-            x64)   plat="x64";   rid="win-x64" ;;
-            arm64) plat="ARM64"; rid="win-arm64" ;;
-          esac
+          switch ("${{ matrix.arch }}") {
+            "x64"   { $plat = "x64";   $rid = "win-x64" }
+            "arm64" { $plat = "ARM64"; $rid = "win-arm64" }
+          }
 
-          if [ "${{ inputs.publish_mode }}" = "publish" ]; then
-            cfg="Publish_Release"
+          if ("${{ inputs.publish_mode }}" -eq "publish") {
+            $cfg = "Publish_Release"
             # publish ImageGlass first (it owns the output folder)
-            msbuild v9/ImageGlass/ImageGlass.csproj -t:Publish \
-              -p:Configuration="$cfg" -p:Platform="$plat" -p:RuntimeIdentifier="$rid" \
+            msbuild v9/ImageGlass/ImageGlass.csproj -t:Publish `
+              -p:Configuration="$cfg" -p:Platform="$plat" -p:RuntimeIdentifier="$rid" `
               -p:PublishDir="../../out/ImageGlass/" --no-restore
 
             # publish igcmd into the SAME output folder
-            msbuild v9/igcmd/igcmd.csproj -t:Publish \
-              -p:Configuration="$cfg" -p:Platform="$plat" -p:RuntimeIdentifier="$rid" \
+            msbuild v9/igcmd/igcmd.csproj -t:Publish `
+              -p:Configuration="$cfg" -p:Platform="$plat" -p:RuntimeIdentifier="$rid" `
               -p:PublishDir="../../out/ImageGlass/" --no-restore
 
-            out_dir="./out/ImageGlass"
-          else
-            cfg="${{ inputs.configuration }}"
-            msbuild v9/ImageGlass.slnx -t:Build \
-              -p:Configuration="$cfg" -p:Platform="$plat" -p:RuntimeIdentifier="$rid" \
+            $out_dir = "./out/ImageGlass"
+          }
+          else {
+            $cfg = "${{ inputs.configuration }}"
+            msbuild v9/ImageGlass.slnx -t:Build `
+              -p:Configuration="$cfg" -p:Platform="$plat" -p:RuntimeIdentifier="$rid" `
               --no-restore
             # build output lives in each project's bin/<cfg>/<plat>/
-            out_dir="v9/ImageGlass/bin/$cfg/$plat"
-          fi
+            $out_dir = "v9/ImageGlass/bin/$cfg/$plat"
+          }
 
-          echo "OUT_DIR=$out_dir" >> "$GITHUB_ENV"
-          echo "Output directory: $out_dir"
-          ls -la "$out_dir" | head -20
+          "OUT_DIR=$out_dir" | Out-File -FilePath $env:GITHUB_ENV -Append
+          Write-Host "Output directory: $out_dir"
+          Get-ChildItem $out_dir | Select-Object -First 20
 
       # ----------------------------------------------------------------
       # Strip debug symbols (.pdb) to keep the artifact small. Skipped
