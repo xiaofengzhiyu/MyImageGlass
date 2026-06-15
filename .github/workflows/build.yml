@@ -1,0 +1,236 @@
+name: Build ImageGlass
+
+# Manually triggered build: pick the platform(s), architecture(s),
+# and compile options from the Actions tab, then the selected
+# combinations are built and published as downloadable artifacts.
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: "Target platform"
+        required: true
+        type: choice
+        default: "win"
+        options:
+          - win
+          - linux
+          - mac
+          - all
+      architecture:
+        description: "Architecture (CPU)"
+        required: true
+        type: choice
+        default: "x64"
+        options:
+          - x64
+          - arm64
+          - both
+      configuration:
+        description: "Build configuration"
+        required: true
+        type: choice
+        default: "Release"
+        options:
+          - Debug
+          - Release
+      publish_mode:
+        description: "Compile mode"
+        required: true
+        type: choice
+        default: "aot"
+        options:
+          - aot
+          - fast
+      include_lib:
+        description: "Include ImageGlass.Lib PDBs in artifact"
+        required: false
+        type: boolean
+        default: false
+
+# Cancel any superseded manual run of the same workflow.
+concurrency:
+  group: build-${{ github.ref }}-${{ github.event.inputs.platform }}-${{ github.event.inputs.architecture }}
+  cancel-in-progress: true
+
+jobs:
+  # ------------------------------------------------------------------
+  # Build the matrix of (platform, arch) combinations to actually run,
+  # based on the dropdown selections. Doing this in a separate job
+  # lets one dispatch fan out to the right per-platform runners.
+  # ------------------------------------------------------------------
+  prepare:
+    name: Prepare build matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.gen.outputs.matrix }}
+    steps:
+      - id: gen
+        name: Generate matrix
+        run: |
+          platform_input="${{ inputs.platform }}"
+          arch_input="${{ inputs.architecture }}"
+
+          # expand the "all"/"both" convenience options
+          if [ "$platform_input" = "all" ]; then
+            platforms='win linux mac'
+          else
+            platforms="$platform_input"
+          fi
+
+          if [ "$arch_input" = "both" ]; then
+            archs='x64 arm64'
+          else
+            archs="$arch_input"
+          fi
+
+          # emit a JSON includes[] array
+          include="[" 
+          first=1
+          for p in $platforms; do
+            for a in $archs; do
+              # Linux/macOS arm64 AOT needs a native cross-toolchain on an x64
+              # runner; route arm64 builds to GitHub's native arm64 runners
+              # where available so native AOT just works.
+              case "$p-$a" in
+                win-*)     runner="windows-latest" ;;
+                linux-x64) runner="ubuntu-latest" ;;
+                linux-arm64) runner="ubuntu-24.04-arm" ;;
+                mac-x64)   runner="macos-13" ;;
+                mac-arm64) runner="macos-14" ;;
+                *)         runner="ubuntu-latest" ;;
+              esac
+
+              # csproj IgPlatformId / project folder mapping
+              case "$p" in
+                win)   project="ImageGlass.Win32" ;;
+                linux) project="ImageGlass.Linux" ;;
+                mac)   project="ImageGlass.Mac" ;;
+              esac
+
+              if [ $first -eq 1 ]; then first=0; else include+=","; fi
+              include+="{\"platform\":\"$p\",\"arch\":\"$a\",\"runner\":\"$runner\",\"project\":\"$project\"}"
+            done
+          done
+          include+="]"
+
+          echo "matrix={\"include\":$include}" >> "$GITHUB_OUTPUT"
+          echo "Generated matrix:"
+          echo "{\"include\":$include}"
+
+
+  # ------------------------------------------------------------------
+  # One job per (platform, arch) combination. Each runs on the
+  # platform's native OS so that native AOT compilation works.
+  # ------------------------------------------------------------------
+  build:
+    name: ${{ matrix.platform }}-${{ matrix.arch }} (${{ inputs.configuration }}, ${{ inputs.publish_mode }})
+    needs: prepare
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+          dotnet-quality: "ga"
+
+      # ----------------------------------------------------------------
+      # Native AOT prerequisites.
+      #
+      # IMPORTANT: Native AOT is built into the .NET 10 SDK — it needs NO
+      # `dotnet workload` packages. Calling `dotnet workload update` /
+      # `workload restore` here would pull in the entire WASM/Emscripten
+      # toolchain (Node, Python, ~GBs) that the runner ships for Blazor,
+      # which is useless for a desktop AOT build and wastes many minutes.
+      #
+      # The only thing AOT's native linker needs beyond the SDK is the C
+      # toolchain, which on Linux we install explicitly (Windows & macOS
+      # runners already ship clang/Xcode).
+      # ----------------------------------------------------------------
+      - name: Install native AOT toolchain (Linux)
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang zlib1g-dev
+
+      - name: Dotnet restore
+        run: dotnet restore "source/${{ matrix.project }}/${{ matrix.project }}.csproj"
+
+      # ----------------------------------------------------------------
+      # Publish. The csproj already defines PublishAot=true etc., so the
+      # AOT mode just runs `dotnet publish`. The "fast" mode overrides
+      # PublishAot=false to produce a quick single-file build (still
+      # trimmed + self-contained) without the slow native compile step.
+      #
+      # Platform must be x64 | ARM64 (case-sensitive in the csproj).
+      # Win32 derives RuntimeIdentifier from Platform; for Linux/macOS we
+      # also pass the RID explicitly so native AOT targets the right arch.
+      # ----------------------------------------------------------------
+      - name: Publish (${{ inputs.publish_mode }})
+        run: |
+          # map the matrix arch to the csproj Platform value + RID
+          case "${{ matrix.arch }}" in
+            x64)    csproj_platform="x64";   rid="${{ matrix.platform }}-x64" ;;
+            arm64)  csproj_platform="ARM64"; rid="${{ matrix.platform }}-arm64" ;;
+          esac
+
+          extra_args=""
+          if [ "${{ inputs.publish_mode }}" = "fast" ]; then
+            extra_args="-p:PublishAot=false -p:PublishReadyToRun=false"
+          fi
+
+          echo "::group::dotnet publish"
+          dotnet publish "source/${{ matrix.project }}/${{ matrix.project }}.csproj" \
+            -c "${{ inputs.configuration }}" \
+            -p:Platform="$csproj_platform" \
+            -p:RuntimeIdentifier="$rid" \
+            -o "./publish" \
+            $extra_args
+          echo "::endgroup::"
+        shell: bash
+
+      # ----------------------------------------------------------------
+      # Package the output. Exclude the build-time lib PDBs unless
+      # explicitly requested, to keep the artifact small.
+      # ----------------------------------------------------------------
+      - name: Stage artifact
+        shell: bash
+        run: |
+          staging="./artifact"
+          mkdir -p "$staging"
+
+          # copy publish output, drop ref assemblies and (optionally) lib PDBs
+          cp -r ./publish/* "$staging/"
+          rm -rf "$staging"/ref 2>/dev/null || true
+
+          if [ "${{ inputs.include_lib }}" != "true" ]; then
+            find "$staging" -name "ImageGlass.Lib.pdb" -delete 2>/dev/null || true
+          fi
+
+          # produce a version string for the archive name
+          version="$(grep -oP '(?<=IgVersion>)[^<]+' source/Directory.Build.props | head -n1)"
+          name="ImageGlass_${version}_${{ matrix.platform }}-${{ matrix.arch }}_${{ inputs.configuration }}-${{ inputs.publish_mode }}"
+          echo "ARTIFACT_NAME=$name" >> "$GITHUB_ENV"
+
+          # zip it up (cross-platform: 7z on Windows, zip elsewhere)
+          if [ "${{ matrix.platform }}" = "win" ]; then
+            7z a -tzip "$name.zip" "$staging/*"
+          else
+            ( cd "$staging" && zip -r "../$name.zip" . )
+          fi
+          echo "Archive created: $name.zip"
+          ls -lh "$name.zip"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: ${{ env.ARTIFACT_NAME }}.zip
+          retention-days: 7
+          compression-level: 0
