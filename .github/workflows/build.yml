@@ -91,7 +91,20 @@ jobs:
       # ----------------------------------------------------------------
 
       - name: Dotnet restore
-        run: dotnet restore v9/ImageGlass.slnx
+        shell: bash
+        run: |
+          case "${{ matrix.arch }}" in
+            x64)   plat="x64";   rid="win-x64" ;;
+            arm64) plat="ARM64"; rid="win-arm64" ;;
+          esac
+
+          # restore MUST include the RuntimeIdentifier + Platform so that
+          # project.assets.json contains the matching restore target;
+          # otherwise publish (which passes -p:RuntimeIdentifier) fails
+          # with NETSDK1047.
+          dotnet restore v9/ImageGlass.slnx \
+            -p:Platform="$plat" \
+            --runtime "$rid"
 
       # ----------------------------------------------------------------
       # Compile. Two modes:
