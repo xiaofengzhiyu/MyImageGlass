@@ -1,0 +1,171 @@
+name: Build ImageGlass (v9)
+
+# Manually triggered build for the v9 (WinForms) codebase.
+# Pick the architecture and compile options from the Actions tab,
+# then the selected combinations are built and published as
+# downloadable artifacts (kept for 7 days).
+#
+# v9 is Windows-only (net10.0-windows, WinForms), so this always
+# runs on a Windows runner and only offers win-x64 / win-arm64.
+on:
+  workflow_dispatch:
+    inputs:
+      architecture:
+        description: "Architecture (CPU)"
+        required: true
+        type: choice
+        default: "x64"
+        options:
+          - x64
+          - arm64
+          - both
+      publish_mode:
+        description: "Compile mode"
+        required: true
+        type: choice
+        default: "publish"
+        options:
+          - publish
+          - build
+      configuration:
+        description: "Build configuration (publish mode forces Publish_Release)"
+        required: true
+        type: choice
+        default: "Release"
+        options:
+          - Release
+          - Debug
+
+# Cancel any superseded manual run of the same workflow.
+concurrency:
+  group: build-${{ github.ref }}-${{ github.event.inputs.architecture }}
+  cancel-in-progress: true
+
+jobs:
+  # ------------------------------------------------------------------
+  # Expand the "both" convenience option into a real arch list.
+  # ------------------------------------------------------------------
+  prepare:
+    name: Prepare build matrix
+    runs-on: ubuntu-latest
+    outputs:
+      archs: ${{ steps.gen.outputs.archs }}
+    steps:
+      - id: gen
+        run: |
+          arch_input="${{ inputs.architecture }}"
+          if [ "$arch_input" = "both" ]; then
+            echo 'archs=["x64","arm64"]' >> "$GITHUB_OUTPUT"
+          else
+            echo "archs=[\"$arch_input\"]" >> "$GITHUB_OUTPUT"
+          fi
+
+
+  # ------------------------------------------------------------------
+  # One job per architecture. Always runs on Windows because v9 is a
+  # WinForms / net10.0-windows app (no Linux or macOS build exists).
+  # ------------------------------------------------------------------
+  build:
+    name: win-${{ matrix.arch }}
+    needs: prepare
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: ${{ fromJson(needs.prepare.outputs.archs) }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+          dotnet-quality: "ga"
+
+      # ----------------------------------------------------------------
+      # v9 needs NO `dotnet workload` packages (WinForms desktop stack
+      # ships with the Windows SDK). Calling workload update/restore here
+      # would pull gigabytes of useless WASM/MAUI toolchain.
+      # ----------------------------------------------------------------
+
+      - name: Dotnet restore
+        run: dotnet restore v9/ImageGlass.slnx
+
+      # ----------------------------------------------------------------
+      # Compile. Two modes:
+      #  - publish: uses the Publish_Release config (SelfContained +
+      #    ReadyToRun), matching the project's .pubxml profiles. Must
+      #    publish BOTH ImageGlass and igcmd, because under
+      #    Publish_Release the main project excludes the igcmd reference
+      #    (igcmd is built separately and drops into ImageGlass's output).
+      #  - build: a quick Debug/Release build of the whole solution, no
+      #    self-contained packaging. Fast smoke test.
+      # Platform must be x64 | ARM64 (the projects only define those;
+      # AnyCPU would fail). The RID is win-x64 / win-arm64.
+      # ----------------------------------------------------------------
+      - name: Publish (${{ inputs.publish_mode }})
+        shell: bash
+        run: |
+          case "${{ matrix.arch }}" in
+            x64)   plat="x64";   rid="win-x64" ;;
+            arm64) plat="ARM64"; rid="win-arm64" ;;
+          esac
+
+          if [ "${{ inputs.publish_mode }}" = "publish" ]; then
+            cfg="Publish_Release"
+            # publish ImageGlass first (it owns the output folder)
+            dotnet publish v9/ImageGlass/ImageGlass.csproj \
+              -c "$cfg" -p:Platform="$plat" -p:RuntimeIdentifier="$rid" \
+              --no-restore -o "./out/ImageGlass"
+
+            # publish igcmd into the SAME output folder
+            dotnet publish v9/igcmd/igcmd.csproj \
+              -c "$cfg" -p:Platform="$plat" -p:RuntimeIdentifier="$rid" \
+              --no-restore -o "./out/ImageGlass"
+
+            out_dir="./out/ImageGlass"
+          else
+            cfg="${{ inputs.configuration }}"
+            dotnet build v9/ImageGlass.slnx \
+              -c "$cfg" -p:Platform="$plat" -p:RuntimeIdentifier="$rid" \
+              --no-restore
+            # build output lives in each project's bin/<cfg>/<plat>/
+            out_dir="v9/ImageGlass/bin/$cfg/$plat"
+          fi
+
+          echo "OUT_DIR=$out_dir" >> "$GITHUB_ENV"
+          echo "Output directory: $out_dir"
+          ls -la "$out_dir" | head -20
+
+      # ----------------------------------------------------------------
+      # Strip debug symbols (.pdb) to keep the artifact small. Skipped
+      # for Debug build mode (where symbols are useful).
+      # ----------------------------------------------------------------
+      - name: Strip debug symbols
+        if: inputs.publish_mode == 'publish' || inputs.configuration != 'Debug'
+        shell: bash
+        run: |
+          find "$OUT_DIR" -name "*.pdb" -delete 2>/dev/null || true
+          echo "Remaining .pdb files:"
+          find "$OUT_DIR" -name "*.pdb" 2>/dev/null | wc -l
+
+      - name: Stage artifact
+        shell: bash
+        run: |
+          # version string for the artifact name (from main csproj <Version>)
+          version="$(grep -oP '(?<=<Version>)[^<]+' v9/ImageGlass/ImageGlass.csproj | head -n1)"
+          mode="${{ inputs.publish_mode }}"
+          echo "ARTIFACT_NAME=ImageGlass_v${version}_win-${{ matrix.arch }}_${mode}" >> "$GITHUB_ENV"
+
+      # ----------------------------------------------------------------
+      # Upload the raw folder. upload-artifact compresses it once —
+      # do NOT pre-zip, or you get a zip-inside-a-zip.
+      # ----------------------------------------------------------------
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: ${{ env.OUT_DIR }}
+          retention-days: 7
